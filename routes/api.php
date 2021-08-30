@@ -18,10 +18,17 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::resource('usuario', 'UserController');
+//Route::post('/NAME', 'CLASE@FUNCION');
+Route::post('/evento', 'UserController@eventos');
 
 Route::post('/crearcuenta', 'UserController@crearCuenta');
-Route::post('/evento', ['UserController', 'eventos']);
-Route::get('/balance', 'UserController');
-Route::post('/reset', 'UserController');
+
+Route::get('/test', 'UserController@test');
+
+Route::get('/balance', 'UserController@balance');
+
+Route::post('/reset', 'UserController@reset');
+
+Route::post('/defensa', 'UserController@editarEmail');
+
 
