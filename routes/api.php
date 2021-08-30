@@ -18,10 +18,10 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::resource('usuario', 'UserController');
+//Route::apiResource('/usuario', App\Http\Controllers\UsuarioController::class);
 
-Route::post('/crearcuenta', 'UserController@crearCuenta');
-Route::post('/evento', ['UserController', 'eventos']);
-Route::get('/balance', 'UserController');
-Route::post('/reset', 'UserController');
+Route::post('/evento', [App\Http\Controllers\UsuarioController::class,"eventos"]);
+Route::get('/balance', [App\Http\Controllers\UsuarioController::class,"balance"]);
+Route::post('/reset', [App\Http\Controllers\UsuarioController::class,"reset"]);
+Route::post('/crear', [App\Http\Controllers\UsuarioController::class,"crearUsuario"]);
 

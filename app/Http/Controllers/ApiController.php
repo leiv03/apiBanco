@@ -1,5 +1,5 @@
 <?php
-
+// Modificamos el código de ApiController para estandarizar los retornos de nuestra API
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
