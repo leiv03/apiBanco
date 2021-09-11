@@ -4,135 +4,159 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Models\User;
-use App\Models\Token;
-use Carbon\Carbon;
+
 
 class UsuarioController extends ApiController
 {
-    //deposito
+    // Deposito de dinero
     public function deposito(Request $request)
     {
-        $destino = $request->input('id');
+        $destino = $request->input('destino');
         $monto = $request->input('monto');
 
         $usuario = User::find($destino);
-        $usuario->balance = $usuario->balance + $monto;
-        $usuario->save();
-        return $this->sendResponse(
-            ['id' => $usuario->id, 'balance' => $usuario->balance],
-            'Se a hecho el deposito correctamente',
-            200
-        );
-    }
-    //retiro
-    public function retiro(Request $request)
-    {
-        try {
-            
-            $origen = $request->input('origen');
-            $monto = $request->input('monto');
-            $usuario = User::find($origen);
-            echo $monto;
-            if ($monto >= 1000) {
-                
-                $this->crearToken($usuario);
-            }
-            $usuario->balance = $usuario->balance - $monto;
+        if ($usuario) {
+            $usuario->balance = $usuario->balance + $monto;
             $usuario->save();
-            return $this->sendResponse($usuario->origen,$usuario->balance,200);
-        } catch (Exception $e) {
-            return $this->sendError('error conosido','Saldo insuficiente',404);
+            return $this->sendResponse(
+                ['id' => $usuario->id, 'balance' => $usuario->balance],
+                'Se a hecho el deposito correctamente',
+                200
+            );
+        } else {
+            return $this->sendError(
+                'error conocido',
+                'Usuario no encontrado',
+                404
+            );
         }
     }
-    //transferencia
+    //Retiro de dinero
+    public function retiro(Request $request)
+    {
+        $origen = $request->input('origen');
+        $monto = $request->input('monto');
+        $usuario = User::find($origen);
+        if ($usuario) {
+            if ($usuario->balance > $monto) {
+                $usuario->balance = $usuario->balance - $monto;
+                $usuario->save();
+                return $this->sendResponse(
+                    ['id' => $usuario->id, 'balance' => $usuario->balance],
+                    'Se ha realizado el retiro correctamente'
+                );
+            } else {
+                return $this->sendError(
+                    'error conocido',
+                    'Saldo insuficiente',
+                    404
+                );
+            }
+        } else {
+            return $this->sendError(
+                'error conocido',
+                'Usuario no encontrado',
+                404
+            );
+        }
+        /*
+            if ($monto >= 1000) {
+                $this->crearToken($usuario);
+            }*/
+    }
+
+    //Transferir dinero de una cuenta a otra
     public function transferencia(Request $request)
     {
         $usuarioDestino = User::find($request->input('destino'));
         $usuarioOrigen = User::find($request->input('origen'));
-
-        if ($monto >= 1000) {
-            $date = Carbon::now();
-            $date = $date->addMinute(5);
-            $token = new Token();
-            $token->idUsuario = $usuario->id;
-            $token->token = random_int(100000, 500000);
-            $token->fecha = $date;
-            $token->save();
-        } elseif ($usuarioOrigen->balance <= $request->input('monto')) {
-            return $this->sendError(404, 'saldo insuficiente');
+        if (!$usuarioOrigen or !$usuarioDestino) {
+            return $this->sendError(
+                'error conocido',
+                'Usuario no encontrado',
+                404
+            );
         } else {
-            $usuarioOrigen->balance = $usuarioOrigen->balance - $request->input('monto');
-            $usuarioOrigen->save();
-            $usuarioDestino->balance = $usuarioDestino->balance + $request->input('monto');
-            $usuarioDestino->save();
-            return $this->sendResponse([[$usuarioOrigen,"usuario origen"],[$usuarioDestino,"usuario destino"]], 'realizada correctamente la transferencia');
+            if ($usuarioOrigen->balance < $request->input('monto')) {
+                return $this->sendError(
+                    'No se logro hacer la transferencia',
+                    'saldo insuficiente',
+                    404
+                );
+            } else {
+                $usuarioOrigen->balance =
+                    $usuarioOrigen->balance - $request->input('monto');
+                $usuarioOrigen->save();
+                $usuarioDestino->balance =
+                    $usuarioDestino->balance + $request->input('monto');
+                $usuarioDestino->save();
+                return $this->sendResponse(
+                    [
+                        [
+                            'id' => $usuarioOrigen->id,
+                            'balance' => $usuarioOrigen->balance,
+                        ],
+                        [
+                            'id' => $usuarioDestino->id,
+                            'balance' => $usuarioDestino->balance,
+                        ],
+                    ],
+                    'realizada correctamente la transferencia'
+                );
+            }
         }
     }
 
-    //tres tipos de enevntos
+    //Opcion de deposaitar, retirar y transferencia
     public function eventos(Request $request)
     {
         switch ($request->input('tipo')) {
             case 'deposito':
-                $this->deposito($request);
+                return $this->deposito($request);
                 break;
             case 'retiro':
-                $this->retiro($request);
+                return $this->retiro($request);
                 break;
             case 'transferencia':
-                $this->transferencia($request);
+                return $this->transferencia($request);
                 break;
         }
     }
 
+    // Visualizar balance de la cuenta
     public function balance(Request $request)
     {
-        try {
-            $usuario = User::find($request->id);
-            return ($this->sendResponse([$usuario->id, $usuario->balance], 'balance de usuario'));
-        } catch (Exception $e) {
-            return ($this->sendError('no existe'));
+        $usuario = User::find($request->input('id'));
+        if($usuario) {
+            return $this->sendResponse(
+                ['id' => $usuario->id,'balance' => $usuario->balance],'Balance de usuario');
+        } else{
+            return $this->sendError('error conocido','usuario no existe', 404);
         }
     }
+
+   //Creación de cuenta con email
+   public function crearUsuario(Request $request){
+       $usuario = User::where('email', '=', $request->input('email'))->get();
+       if(strlen($usuario) > 2) {
+        return $this->sendError('error conocido','Email ya existente', 404);
+       }else{
+        $usuario = new User();
+        $usuario->email = $request->input('email');
+        $usuario->balance = 0;
+        $usuario->save();
+        return $this->sendResponse([
+            'id' => $usuario->id,
+            'email' => $usuario->email,
+        ],'usuario creado satisfactoriamente');
+       }
+   }
+
+   //reset
     public function reset(Request $request)
     {
-        token::truncate();
         User::truncate();
-        return ($this->sendResponse(200, "tablas borradas"));
+        return $this->sendResponse('La tabla usuario','se borro correctamente');
     }
-    public function crearUsuario(Request $request)
-    {
-        if (User::find($request->input('email'))) {
-            return ($this->sendError(404, "mail ya existente en base de datos"));
-        } else {
-            $usuario = new User();
-            $usuario->email = $request->input('email');
-            $usuario->balance = 0;
-            $usuario->save();
-            return ($this->sendResponse($usuario, "usuario creado satisfactoriamente"));
-        }
-    }
-    public function crearToken($usuario){
-    //creacion de la fecha 
-    $date = Carbon::now();
-    $date = $date->addMinute(5);
-
-    //Guardar/Crea el token con una fecha asociado a una id de usuario
-    $token = new Token();
-    $token->idUsuario = $usuario->id;
-    $token->token = random_int(100000, 500000);
-    $token->fecha = $date;
-    $token->save();
-
-    //envio del mail
-    $data = array();
-    $data['token'] =  $token->token;
-    $data['email'] = $usuario->email;
-    Mail::send('mail.email', $data, function ($msj) use ($data) {
-        $msj->subject('Envio de TOKEN');
-        $msj->to($data['email']);
-    });
-    return $this->sendResponse("Token enviado", "revise su mail :)", 200);
-}
    
 }

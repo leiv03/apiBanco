@@ -20,12 +20,6 @@ class CrearTablas extends Migration
             $table->integer('balance');
 
         });
-
-        Schema::create('Token', function (Blueprint $table) {
-            $table->foreignId('idUsuario')->references('id')->on('usuarios');
-            $table->integer('token');
-            $table->date('fecha');
-        });
     }
 
     /**
